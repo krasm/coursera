@@ -13,6 +13,15 @@
 #define CT1  "4ca00ff4c898d61e1edbf1800618fb2828a226d160dad07883d04e008a7897ee2e4b7465d5290d0c0e6c6822236e1daafb94ffe0c5da05d9476be028ad7c1d81"
 #define CT1_LEN strlen(CT1)
 
+#define K2 "140b41b22a29beb4061bda66b6747e14"
+#define C2 "5b68629feb8606f9a6667670b75b38a5b4832d0f26e1ab7da33249de7d4afc48e713ac646ace36e872ad5fb8a512428a6e21364b0c374df45503473c5242a253"
+
+#define K3 "36f18357be4dbd77f050515c73fcf9f2"
+#define C3 "69dda8455c7dd4254bf353b773304eec0ec7702330098ce7f7520d1cbbb20fc388d1b0adb5054dbd7370849dbf0b88d393f252e764f1f5f7ad97ef79d59ce29f5f51eeca32eabedd9afa9329"
+
+#define K4 "36f18357be4dbd77f050515c73fcf9f2"
+#define C4 "770b80259ec33beb2561358a9f2dc617e46218c0a53cbeca695ae45faa8952aa0e311bde9d4e01726d3184c34451"
+
 unsigned char from_hex_char(unsigned char c) {
 	switch(tolower(c)) {
 		case '0': case '1': case '2': case '3': case '4':
@@ -101,9 +110,96 @@ static void test() {
 
 }
 
+char * decrypt(const char * str_key, const char * str_ct) {
+	EVP_CIPHER_CTX *ctx;
+	size_t ctl = strlen(str_ct);
+	size_t len = ctl / 2;
+	size_t txt_len;
+	char * out = (char*)malloc(len + 1);
+	unsigned char * key = from_hex(str_key, strlen(str_key));
+	unsigned char * ct = from_hex(str_ct, ctl);
+
+	if( !(ctx = EVP_CIPHER_CTX_new()) ) {
+		ERR_print_errors_fp(stderr);
+		abort();
+	}
+	if(1 != EVP_DecryptInit_ex(ctx, EVP_aes_128_cbc(), NULL, key, ct)) {
+		ERR_print_errors_fp(stderr);
+		abort();
+	}
+
+	if(1 != EVP_DecryptUpdate(ctx, out, &len, ct+16, len - 16)) {
+		ERR_print_errors_fp(stderr);
+		abort();
+	}
+
+	txt_len = len;
+	if(1 != EVP_DecryptFinal_ex(ctx, out + len, &len)) {
+		ERR_print_errors_fp(stderr);
+		abort();
+	}
+	txt_len += len;
+	out[txt_len] = '\0';
+	free(key);
+	free(ct);
+
+	/* Clean up */
+    EVP_CIPHER_CTX_free(ctx);
+
+	return out;
+}
+
+char * decrypt_1(const char * str_key, const char * str_ct) {
+	EVP_CIPHER_CTX *ctx;
+	size_t ctl = strlen(str_ct);
+	size_t len = ctl / 2;
+	size_t txt_len;
+	char * out = (char*)malloc(len + 1);
+	unsigned char * key = from_hex(str_key, strlen(str_key));
+	unsigned char * ct = from_hex(str_ct, ctl);
+
+	if( !(ctx = EVP_CIPHER_CTX_new()) ) {
+		ERR_print_errors_fp(stderr);
+		abort();
+	}
+	if(1 != EVP_DecryptInit_ex(ctx, EVP_aes_128_ctr(), NULL, key, ct)) {
+		ERR_print_errors_fp(stderr);
+		abort();
+	}
+
+	if(1 != EVP_DecryptUpdate(ctx, out, &len, ct+16, len - 16)) {
+		ERR_print_errors_fp(stderr);
+		abort();
+	}
+
+	txt_len = len;
+	if(1 != EVP_DecryptFinal_ex(ctx, out + len, &len)) {
+		ERR_print_errors_fp(stderr);
+		abort();
+	}
+	txt_len += len;
+	out[txt_len] = '\0';
+	free(key);
+	free(ct);
+
+	/* Clean up */
+    EVP_CIPHER_CTX_free(ctx);
+
+	return out;
+}
+
 int main(int argc, char * argv[]) {
 	// some test 
 	test();
-
+	char * result = decrypt(KEY1, CT1);
+	printf("%s\n", result);
+	result = decrypt(K2, C2);
+	printf("%s\n", result);
+	result = decrypt(K2, C2);
+	printf("%s\n", result);
+	result = decrypt_1(K3, C3);
+	printf("%s\n", result);
+	result = decrypt_1(K4, C4);
+	printf("%s\n", result);
 	return EXIT_SUCCESS;
 }
