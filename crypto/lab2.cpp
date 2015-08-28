@@ -7,6 +7,17 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <ctype.h>
+#include <stdint.h>
+
+#include <vector>
+#include <iostream>
+#include <algorithm>
+#include <iterator>
+#include <iomanip>
+#include <string>
+#include <sstream>
+
+using namespace std;
 
 #define KEY1 "140b41b22a29beb4061bda66b6747e14"
 #define KEY1_LEN 32
@@ -45,23 +56,6 @@ unsigned char from_hex_char(unsigned char c) {
 	}
 }
 
-unsigned char * from_hex(const char * in, size_t l) {
-	unsigned char * out;
-	unsigned char * ret;
-	assert(in != NULL);
-	assert(l > 0 && l % 2 == 0);
-	ret = out = (unsigned char*)malloc(l / 2 + 1);
-
-	while(*in) {
-		unsigned char c = 0;
-		c = from_hex_char(*in++);
-		c = (c << 4) | from_hex_char(*in++);
-		*out++ = c;
-	}	
-	*out = '\0';
-	return ret;
-}
-
 char * to_hex(const unsigned char * in, size_t l) {
 	char * out;
 	char * ret;
@@ -77,6 +71,36 @@ char * to_hex(const unsigned char * in, size_t l) {
 	*out = '\0';
 	return ret;
 }
+
+/** 
+ * binary buffer
+ */
+struct str_t {
+    str_t(const char * in)
+    {
+        assert(in != 0);
+        
+        while(*in != '\0') {
+            unsigned char c = 0;
+            c = from_hex_char(*in++);
+            if(*in != '\0') 
+                c = (c << 4) | from_hex_char(*in++);
+            m_buf.push_back(c);
+        }	
+    }
+
+    string to_hex() const {
+        ostringstream out;
+        vector<unsigned char>::const_iterator it = m_buf.begin();
+        while(it != m_buf.end()) {
+            out << hex << setw(2) << setfill('0') 
+                << static_cast<unsigned int>(*it++);
+        }
+        return out.str();
+    }
+
+    vector<unsigned char> m_buf;
+};
 
 static void test() {
 	assert(0 == from_hex_char('0'));
@@ -95,7 +119,10 @@ static void test() {
 	assert(13 == from_hex_char('d'));
 	assert(14 == from_hex_char('e'));
 	assert(15 == from_hex_char('F'));
-	
+    
+    {str_t k(KEY1); assert( k.to_hex() == KEY1 );}
+    {str_t k(CT1); assert( k.to_hex() == CT1 );}
+#if 0
 	{
 		unsigned char * t = from_hex(KEY1, KEY1_LEN);
 		char * u = to_hex(t, KEY1_LEN / 2);
@@ -107,9 +134,10 @@ static void test() {
 		assert(strcmp(CT1, u) == 0);
 		free(t); free(u);
 	}
-
+#endif 
 }
 
+#if 0
 char * decrypt(const char * str_key, const char * str_ct) {
 	EVP_CIPHER_CTX *ctx;
 	size_t ctl = strlen(str_ct);
@@ -187,10 +215,11 @@ char * decrypt_1(const char * str_key, const char * str_ct) {
 
 	return out;
 }
-
+#endif 
 int main(int argc, char * argv[]) {
 	// some test 
 	test();
+#if 0
 	char * result = decrypt(KEY1, CT1);
 	printf("%s\n", result);
 	result = decrypt(K2, C2);
@@ -201,5 +230,6 @@ int main(int argc, char * argv[]) {
 	printf("%s\n", result);
 	result = decrypt_1(K4, C4);
 	printf("%s\n", result);
+#endif
 	return EXIT_SUCCESS;
 }
