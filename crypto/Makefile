@@ -4,4 +4,6 @@ CXXFLAGS= -g -Wall
 
 lab4: lab4.cpp
 
+lab3: lab3.c
+
 lab2: lab2.c
