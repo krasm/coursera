@@ -3,6 +3,9 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <assert.h>
+#include <stdbool.h>
+
+#include <curl/curl.h>
 
 #define DATA "f20bdba6ff29eed7b046d1df9fb7000058b1ffb4210a580f748b4ac714c001bd4a61044426fb515dad3f21f18aa577c0bdf302936266926ff37dbf7035d5eeb4"
 
@@ -72,14 +75,30 @@ static void test_to_hex() {
     assert(strcmp(exp, "deadbeef") == 0);
 }
 
+int request(CURL * curl, const char * url) {
+    CURLcode res;
+    long http_code;
+
+    curl_easy_setopt(curl, CURLOPT_URL, url);
+    res = curl_easy_perform(curl);
+    if(res != CURLE_OK) {
+        fprintf(stderr, "get failed %s\n", curl_easy_strerror(res));
+        exit(1);
+    }
+    curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &http_code);
+    // we got 200 if message is correct (padding correct also !)
+    return (http_code == 404L || http_code == 200L);
+}
+
 #define BLOCK_SIZE 16
 int main(int argc, char * argv[]) {
     char          out[256];
     unsigned char data[64];
+    char          result[64];
     size_t        size = 64;
     size_t        url_param;
     int bn = 3; // current block number
-    unsigned char pad = 0x00;
+    CURL * curl;
 
 #if 0
     test_hc2b();
@@ -88,27 +107,39 @@ int main(int argc, char * argv[]) {
 #endif
 
     memset(out, 0, 256);
+    memset(result, 0, 64);
+
     strcpy(out, "http://crypto-class.appspot.com/po?er=");
     url_param = strlen(out);
-    from_hex(DATA, data);
-    
+    curl = curl_easy_init();
     while(bn > 0) {
+        from_hex(DATA, data);
         int pos = bn * BLOCK_SIZE; // end of current iv
+        unsigned char pad = 0x01;
         for(int idx = 1; idx <= BLOCK_SIZE; idx++) {
             data[pos-idx] ^= pad;
-            for(unsigned char c = 0x01; c != 0xFF; c++) {
+            for(unsigned char c = 0x09; c < 255; c++) {
                 data[pos-idx] ^= c;
                 to_hex(data, (bn+1) * BLOCK_SIZE, out + url_param);
-                fprintf(stderr, "%s\n", out);
+                if(request(curl, out)) {
+                    fprintf(stderr, "%d: %d\n", pos-idx, c);
+                    result[pos + BLOCK_SIZE - idx] = c;
+                    break;
+                }
                 data[pos-idx] ^= c;
             }
             // increase the padding
-            for(int j = idx; j >= 0; j --) 
-                data[pos-idx] ^= (pad ^ (pad+1));
+            for(int j = idx; j > 0; j --) {
+                data[pos-j] ^= (pad ^ (pad+1));
+            }
+            pad ++;
                 
         }
         bn -= 1;
     }
+    curl_easy_cleanup(curl);
+
+    fprintf(stderr, "%s\n", result+BLOCK_SIZE);
 
     return 0;
 }

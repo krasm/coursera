@@ -1,6 +1,8 @@
 CFLAGS=-std=c11 -g -Wall
 CXXFLAGS=-std=c++11 -g -Wall
-LDFLAGS=-lcrypto -lcurl
+LDFLAGS= -lcurl
+
+l: l.c
 
 lab4: lab4.cpp
 
