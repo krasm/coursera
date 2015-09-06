@@ -1,6 +1,9 @@
 CFLAGS=-std=c11 -g -Wall
 CXXFLAGS=-std=c++11 -g -Wall
-LDFLAGS= -lcurl
+LDFLAGS= -lcurl -lavl
+
+l5: l5.c
+	cc -std=c99 -Wall -o l5 l5.c -lgmp -lavl
 
 l: l.c
 
